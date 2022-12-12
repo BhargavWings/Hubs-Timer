@@ -12,7 +12,9 @@ import {
   SendMessageButton,
   EmojiPickerPopoverButton,
   ChatLengthWarning,
-  PermissionMessageGroup
+  PermissionMessageGroup,
+  LogMessageType,
+  MessageBubble
 } from "./ChatSidebar";
 import { useMaintainScrollPosition } from "../misc/useMaintainScrollPosition";
 import { spawnChatMessage } from "../chat-message";
@@ -104,7 +106,7 @@ function processChatMessage(messageGroups, newMessage) {
 
 // Returns the new message groups array when we receive a message.
 // If the message is ignored, we return the original message group array.
-function updateMessageGroups(messageGroups, newMessage) {
+export function updateMessageGroups(messageGroups, newMessage) {
   switch (newMessage.type) {
     case "join":
     case "entered":
@@ -113,6 +115,8 @@ function updateMessageGroups(messageGroups, newMessage) {
     case "scene_changed":
     case "hub_name_changed":
     case "hub_changed":
+    // case "timer_on":
+    // case "timer_off":  
     case "log":
       return [
         ...messageGroups,
@@ -134,15 +138,30 @@ function updateMessageGroups(messageGroups, newMessage) {
   }
 }
 
-export function ChatContextProvider({ messageDispatch, children }) {
+export function ChatContextProvider({ messageDispatch, children,setTimer,setStoringTime}) {
   const [messageGroups, setMessageGroups] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState(false);
   const isMod = useRole("owner");
 
   useEffect(() => {
     function onReceiveMessage(event) {
-      const newMessage = event.detail;
-
+      const newMessage = event.detail;  
+      let isTimer = newMessage?.body?.split(":")[0] === "Timer";
+          if(isTimer){
+          setTimer(true)
+          setStoringTime(parseInt(newMessage.body.split(":")[2]))
+          console.log("time",newMessage.body.split(":")[2])
+          console.log(document.getElementById("input2").onclick)
+          this.log(LogMessageType.timerStarted) 
+          onReceiveMessage("")
+        }
+        
+        else if(newMessage.body==="Room Owner has stopped the Timer."){
+          setTimer(false)
+          setStoringTime('')
+          this.log(LogMessageType.timerStopped)
+          onReceiveMessage("")  
+      }
       if (isMod && newMessage.sessionId === NAF.clientId && newMessage.type === "permission") return;
 
       setMessageGroups(messages => updateMessageGroups(messages, newMessage));
@@ -167,7 +186,7 @@ export function ChatContextProvider({ messageDispatch, children }) {
         messageDispatch.removeEventListener("message", onReceiveMessage);
       }
     };
-  }, [messageDispatch, setMessageGroups, setUnreadMessages, isMod]);
+  },[messageDispatch, setMessageGroups, setUnreadMessages, isMod]);
 
   const sendMessage = useCallback(
     message => {

@@ -392,10 +392,14 @@ export function presenceEventsForHub(events) {
   const onChange = (key, previous, current) => {
     events.trigger(`hub:change`, { key, previous, current });
   };
+  // const onTimerTrigger=(previous,current)=>{
+  //   events.trigger(`hub:timer`,{previous,current});
+  // }
   return {
     onJoin,
     onLeave,
-    onChange
+    onChange,
+    // onTimerTrigger
   };
 }
 

@@ -93,10 +93,10 @@ export const SCHEMA = {
         hasScaled: { type: "boolean" },
         hasHoveredInWorldHud: { type: "boolean" },
         hasOpenedShare: { type: "boolean" },
-        entryCount: { type: "number" }
+        entryCount: { type: "number" },
       }
     },
-
+    
     settings: {
       type: "object",
       additionalProperties: false,
@@ -105,7 +105,7 @@ export const SCHEMA = {
         micMuted: { type: "bool" }
       }
     },
-
+    
     preferences: {
       type: "object",
       additionalProperties: false,
@@ -161,7 +161,9 @@ export const SCHEMA = {
         avatarVoiceLevels: { type: "object" },
         enablePostEffects: { type: "bool", default: false },
         enableBloom: { type: "bool", default: true }, // only applies if post effects are enabled
-        aaMode: { type: "string", default: AAModes.MSAA_4X } // only applies if post effects are enabled
+        aaMode: { type: "string", default: AAModes.MSAA_4X }, // only applies if post effects are enabled
+        // timerOn:{type:"boolean",default:false},
+        // timerOff:{type:"boolean",default:true}
       }
     },
 

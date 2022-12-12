@@ -139,7 +139,7 @@ import "./components/video-texture-target";
 import "./components/mirror";
 
 import ReactDOM from "react-dom";
-import React from "react";
+import React,{useState} from "react";
 import { Router, Route } from "react-router-dom";
 import { createBrowserHistory, createMemoryHistory } from "history";
 import { pushHistoryState } from "./utils/history";
@@ -328,7 +328,7 @@ function mountUI(props = {}) {
               ) : props.roomUnavailableReason ? (
                 <ExitedRoomScreenContainer reason={props.roomUnavailableReason} />
               ) : (
-                <UIRoot
+                <UIRoot 
                   {...{
                     scene,
                     isBotMode,
@@ -700,7 +700,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const hubId = getCurrentHubId();
   console.log(`Hub ID: ${hubId}`);
-
+//  console.log(store.state.preferences.timerOn)
+//  console.log(store.state.preferences.timerOff)
   const shouldRedirectToSignInPage =
     // Default room won't work if account is required to access
     !configs.feature("default_room_id") &&
@@ -1182,6 +1183,27 @@ document.addEventListener("DOMContentLoaded", async () => {
       name: current.profile.displayName
     });
   });
+
+  //   events.on(`hub:change`, () => {
+  //     if(store.state.preferences.timerOn!==undefined && store.state.preferences.timerOn){
+  //       messageDispatch.receive({
+  //         type:"timer_on",
+  //         newState:"started"
+  //       })
+  //     }
+  //     console.log(store.state.preferences.timerOn)
+  //   })
+  
+  // events.on(`hub:change`, () => {
+  //   if(store.state.preferences.timerOff!==undefined && store.state.preferences.timerOff){
+  //     messageDispatch.receive({
+  //       type:"timer_off",
+  //       newState:"stopped"
+  //     })
+  //   }
+  //   console.log(store.state.preferences.timerOff)
+  // })
+  
   events.on(`hub:change`, ({ previous, current }) => {
     if (previous.profile.displayName !== current.profile.displayName) {
       messageDispatch.receive({

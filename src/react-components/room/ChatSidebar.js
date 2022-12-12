@@ -186,10 +186,12 @@ export const LogMessageType = {
   audioSuspended: "audioSuspended",
   audioResumed: "audioResumed",
   joinFailed: "joinFailed",
-  avatarChanged: "avatarChanged"
+  avatarChanged: "avatarChanged",
+  timerStarted:"Room Owner has started the Timer.",
+  timerStopped:"Room Owner has stopped the Timer."
 };
 
-const logMessages = defineMessages({
+export const logMessages = defineMessages({
   [LogMessageType.roomEntryRequired]: {
     id: "chat-sidebar.log-message.room-entry-required",
     defaultMessage: "You must enter the room to use this command."
@@ -274,6 +276,14 @@ const logMessages = defineMessages({
   [LogMessageType.avatarChanged]: {
     id: "chat-sidebar.log-message.avatar-changed",
     defaultMessage: "Your avatar has been changed."
+  },
+  [LogMessageType.timerStarted]: {
+    id: "chat-sidebar.log-message.timerStarted",
+    defaultMessage: "Room Owner has started the Timer."
+  },
+  [LogMessageType.timerStopped]: {
+    id: "chat-sidebar.log-message.timerStopped",
+    defaultMessage: "Room Owner has stopped the Timer."
   }
 });
 
@@ -324,7 +334,24 @@ export function formatSystemMessage(entry, intl) {
           values={{ hubName: <b>{entry.hubName}</b> }}
         />
       );
+      // case "timer_on":
+      //   return (
+      //     <FormattedMessage
+      //       id="chat-sidebar.system-message.timer_on"
+      //       defaultMessage="Room Owner has {newState} the Timer."
+      //       values={{newState:<b>{entry.newState}</b>}}
+      //     />
+      //   );
+      //   case "timer_off":
+      //   return (
+      //     <FormattedMessage
+      //       id="chat-sidebar.system-message.timer_off"
+      //       defaultMessage="Room Owner has {newState} the Timer."
+      //       values={{newState:<b>{entry.newState}</b>}}
+      //     />
+      //   );
     case "log":
+      //console.log(logMessages[entry.messageType],"log")
       return intl.formatMessage(logMessages[entry.messageType], entry.props);
     default:
       return null;
@@ -354,7 +381,7 @@ SystemMessage.propTypes = {
 
 export const bubbletypes = ["none", "left", "middle", "right"];
 
-function MessageBubble({ media, monospace, emoji, children, permission }) {
+export function MessageBubble({ media, monospace, emoji, children, permission }) {
   return (
     <div
       className={classNames(styles.messageBubble, {

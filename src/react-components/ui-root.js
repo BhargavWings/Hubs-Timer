@@ -1,10 +1,10 @@
-import React, { Component, useEffect } from "react";
-import PropTypes from "prop-types";
+import React, { Component, useEffect, useState } from "react";
+import PropTypes, { number } from "prop-types";
 import classNames from "classnames";
 import copy from "copy-to-clipboard";
 import { FormattedMessage } from "react-intl";
 import screenfull from "screenfull";
-
+import Timer from "./room/timer";
 import configs from "../utils/configs";
 import { VR_DEVICE_AVAILABILITY } from "../utils/vr-caps-detect";
 import { canShare } from "../utils/share";
@@ -36,10 +36,10 @@ import RTCDebugPanel from "./debug-panel/RtcDebugPanel.js";
 import { showFullScreenIfAvailable, showFullScreenIfWasFullScreen } from "../utils/fullscreen";
 import { handleExitTo2DInterstitial, exit2DInterstitialAndEnterVR, isIn2DInterstitial } from "../utils/vr-interstitial";
 import maskEmail from "../utils/mask-email";
-
+import { updateMessageGroups } from "./room/ChatSidebarContainer";
 import qsTruthy from "../utils/qs_truthy";
 import { LoadingScreenContainer } from "./room/LoadingScreenContainer";
-
+import { LogMessageType, logMessages } from "./room/ChatSidebar";
 import { RoomLayoutContainer } from "./room/RoomLayoutContainer";
 import roomLayoutStyles from "./layout/RoomLayout.scss";
 import { useAccessibleOutlineStyle } from "./input/useAccessibleOutlineStyle";
@@ -98,6 +98,7 @@ import { TERMS, PRIVACY } from "../constants";
 import { ECSDebugSidebarContainer } from "./debug-panel/ECSSidebar";
 import { NotificationsContainer } from "./room/NotificationsContainer";
 import { usePermissions } from "./room/usePermissions";
+import { ToggleInput } from "./input/ToggleInput";
 
 const avatarEditorDebug = qsTruthy("avatarEditorDebug");
 
@@ -178,27 +179,24 @@ class UIRoot extends Component {
     linkCode: null,
     linkCodeCancel: null,
     miniInviteActivated: false,
-
+    watchT: false,
     didConnectToNetworkedScene: false,
     noMoreLoadingUpdates: false,
     hideLoader: false,
     showPrefs: false,
     watching: false,
-    isStreaming: false,
+    isStreaming: null,
     isRecordingMode: false,
-
+    timers: null,
     waitingOnAudio: false,
     audioTrackClone: null,
-
     autoExitTimerStartedAt: null,
     autoExitTimerInterval: null,
     autoExitReason: null,
     secondsRemainingBeforeAutoExit: Infinity,
-
     signedIn: false,
     videoShareMediaSource: null,
     showVideoShareFailed: false,
-
     objectInfo: null,
     objectSrc: "",
     sidebarId: null,
@@ -740,7 +738,7 @@ class UIRoot extends Component {
   };
 
   onTweet = ({ detail }) => {
-    handleExitTo2DInterstitial(true, () => {}).then(() => {
+    handleExitTo2DInterstitial(true, () => { }).then(() => {
       this.props.performConditionalSignIn(
         () => this.props.hubChannel.signedIn,
         () => {
@@ -791,6 +789,32 @@ class UIRoot extends Component {
     });
   };
 
+  renderTimer = () => {
+  if (this.props.hubChannel.canOrWillIfCreator("update_hub") && !this.state.watchT) {
+    console.log(this.props.storingTime,"state")
+      window.APP.hubChannel.sendMessage(`Timer: Room Owner has started the Timer of :${this.props.storingTime} seconds`)
+      this.setState({ watchT: true })
+      console.log(this.props.watchtimer)
+    }
+    else if (this.props.hubChannel.canOrWillIfCreator("update_hub") && this.state.watchT) {
+      window.APP.hubChannel.sendMessage("Room Owner has stopped the Timer.")
+      this.setState({ watchT: false })
+      console.log(this.props.watchtimer)
+    }
+  }
+  storeTime = (e) => {
+    const manageTime = e.target.value
+    if(manageTime>900){
+      alert("time cannot be greater than 900 seconds")
+    }
+    else if(manageTime.startsWith("-")){
+      alert("time cannot be negative")
+    }
+    else{
+    this.props.setStoringTime(manageTime)
+    }
+  }
+  
   renderInterstitialPrompt = () => {
     return (
       <div className={styles.interstitial} onClick={() => this.props.onInterstitialPromptClicked()}>
@@ -1127,20 +1151,20 @@ class UIRoot extends Component {
         items: [
           this.state.signedIn
             ? {
-                id: "sign-out",
-                label: <FormattedMessage id="more-menu.sign-out" defaultMessage="Sign Out" />,
-                icon: LeaveIcon,
-                onClick: async () => {
-                  await this.props.authChannel.signOut(this.props.hubChannel);
-                  this.setState({ signedIn: false });
-                }
+              id: "sign-out",
+              label: <FormattedMessage id="more-menu.sign-out" defaultMessage="Sign Out" />,
+              icon: LeaveIcon,
+              onClick: async () => {
+                await this.props.authChannel.signOut(this.props.hubChannel);
+                this.setState({ signedIn: false });
               }
+            }
             : {
-                id: "sign-in",
-                label: <FormattedMessage id="more-menu.sign-in" defaultMessage="Sign In" />,
-                icon: EnterIcon,
-                onClick: () => this.showContextualSignInDialog()
-              },
+              id: "sign-in",
+              label: <FormattedMessage id="more-menu.sign-in" defaultMessage="Sign In" />,
+              icon: EnterIcon,
+              onClick: () => this.showContextualSignInDialog()
+            },
           canCreateRoom && {
             id: "create-room",
             label: <FormattedMessage id="more-menu.create-room" defaultMessage="Create Room" />,
@@ -1190,48 +1214,48 @@ class UIRoot extends Component {
             onClick: () => this.setSidebar("room-info")
           },
           (this.props.breakpoint === "sm" || this.props.breakpoint === "md") &&
-            (this.props.hub.entry_mode !== "invite" || this.props.hubChannel.can("update_hub")) && {
-              id: "invite",
-              label: <FormattedMessage id="more-menu.invite" defaultMessage="Invite" />,
-              icon: InviteIcon,
-              onClick: () => this.props.scene.emit("action_invite")
-            },
+          (this.props.hub.entry_mode !== "invite" || this.props.hubChannel.can("update_hub")) && {
+            id: "invite",
+            label: <FormattedMessage id="more-menu.invite" defaultMessage="Invite" />,
+            icon: InviteIcon,
+            onClick: () => this.props.scene.emit("action_invite")
+          },
           this.isFavorited()
             ? {
-                id: "unfavorite-room",
-                label: <FormattedMessage id="more-menu.unfavorite-room" defaultMessage="Unfavorite Room" />,
-                icon: StarIcon,
-                onClick: () => this.toggleFavorited()
-              }
+              id: "unfavorite-room",
+              label: <FormattedMessage id="more-menu.unfavorite-room" defaultMessage="Unfavorite Room" />,
+              icon: StarIcon,
+              onClick: () => this.toggleFavorited()
+            }
             : {
-                id: "favorite-room",
-                label: <FormattedMessage id="more-menu.favorite-room" defaultMessage="Favorite Room" />,
-                icon: StarOutlineIcon,
-                onClick: () => this.toggleFavorited()
-              },
+              id: "favorite-room",
+              label: <FormattedMessage id="more-menu.favorite-room" defaultMessage="Favorite Room" />,
+              icon: StarOutlineIcon,
+              onClick: () => this.toggleFavorited()
+            },
           isModerator &&
-            entered && {
-              id: "streamer-mode",
-              label: streaming ? (
-                <FormattedMessage id="more-menu.exit-streamer-mode" defaultMessage="Exit Streamer Mode" />
-              ) : (
-                <FormattedMessage id="more-menu.enter-streamer-mode" defaultMessage="Enter Streamer Mode" />
-              ),
-              icon: CameraIcon,
-              onClick: () => this.toggleStreamerMode()
-            },
+          entered && {
+            id: "streamer-mode",
+            label: streaming ? (
+              <FormattedMessage id="more-menu.exit-streamer-mode" defaultMessage="Exit Streamer Mode" />
+            ) : (
+              <FormattedMessage id="more-menu.enter-streamer-mode" defaultMessage="Enter Streamer Mode" />
+            ),
+            icon: CameraIcon,
+            onClick: () => this.toggleStreamerMode()
+          },
           (this.props.breakpoint === "sm" || this.props.breakpoint === "md") &&
-            entered && {
-              id: "leave-room",
-              label: <FormattedMessage id="more-menu.enter-leave-room" defaultMessage="Leave Room" />,
-              icon: LeaveIcon,
-              onClick: () => {
-                this.showNonHistoriedDialog(LeaveRoomModal, {
-                  destinationUrl: "/",
-                  reason: LeaveReason.leaveRoom
-                });
-              }
-            },
+          entered && {
+            id: "leave-room",
+            label: <FormattedMessage id="more-menu.enter-leave-room" defaultMessage="Leave Room" />,
+            icon: LeaveIcon,
+            onClick: () => {
+              this.showNonHistoriedDialog(LeaveRoomModal, {
+                destinationUrl: "/",
+                reason: LeaveReason.leaveRoom
+              });
+            }
+          },
           canCloseRoom && {
             id: "close-room",
             label: <FormattedMessage id="more-menu.close-room" defaultMessage="Close Room" />,
@@ -1383,26 +1407,39 @@ class UIRoot extends Component {
                     {!this.props.selectedObject && <CompactMoreMenuButton />}
                     {(!this.props.selectedObject ||
                       (this.props.breakpoint !== "sm" && this.props.breakpoint !== "md")) && (
-                      <ContentMenu>
-                        {showObjectList && (
-                          <ObjectsMenuButton
-                            active={this.state.sidebarId === "objects"}
-                            onClick={() => this.toggleSidebar("objects")}
+                        <ContentMenu>
+                          {showObjectList && (
+                            <ObjectsMenuButton
+                              active={this.state.sidebarId === "objects"}
+                              onClick={() => this.toggleSidebar("objects")}
+                            />
+                          )}
+                          <PeopleMenuButton
+                            active={this.state.sidebarId === "people"}
+                            onClick={() => this.toggleSidebar("people")}
+                            presencecount={this.state.presenceCount}
                           />
-                        )}
-                        <PeopleMenuButton
-                          active={this.state.sidebarId === "people"}
-                          onClick={() => this.toggleSidebar("people")}
-                          presencecount={this.state.presenceCount}
-                        />
-                        {showECSObjectsMenuButton && (
-                          <ECSDebugMenuButton
-                            active={this.state.sidebarId === "ecs-debug"}
-                            onClick={() => this.toggleSidebar("ecs-debug")}
-                          />
-                        )}
-                      </ContentMenu>
-                    )}
+                          {this.props.watchtimer && this.props.storingTime!=='' && <Timer storingTime={this.props.storingTime} setStoringTime={this.props.setStoringTime} />}
+
+                          {(this.props.hubChannel.canOrWillIfCreator("update_hub")) && !this.props.watchtimer && <input type="number" min="0" max="600" placeholder="Enter Time in Sec to start the Timer" value={this.props.storingTime || ""} onChange={this.storeTime}></input>}
+                         
+                          {this.props.hubChannel.canOrWillIfCreator("update_hub") && (this.props.storingTime==='') &&<ToggleInput disabled
+                            name="member_permissions.timer" id="input1" onClick={this.renderTimer}
+                            label={<FormattedMessage id="room-settings-sidebar.timer" defaultMessage="Timer" />}
+                          />}
+                           {this.props.hubChannel.canOrWillIfCreator("update_hub") && (this.props.storingTime!=='') && <ToggleInput 
+                            name="member_permissions.timer" id="input2" onClick={this.renderTimer}
+                            label={<FormattedMessage id="room-settings-sidebar.timer" defaultMessage="Timer" />}
+                          />} 
+                
+                            {showECSObjectsMenuButton && (
+                            <ECSDebugMenuButton
+                              active={this.state.sidebarId === "ecs-debug"}
+                              onClick={() => this.toggleSidebar("ecs-debug")}
+                            />
+                          )}
+                        </ContentMenu>
+                      )}
                     {!entered && !streaming && !isMobile && streamerName && <SpectatingLabel name={streamerName} />}
                     {this.props.activeObject && (
                       <ObjectMenuContainer
@@ -1657,12 +1694,12 @@ class UIRoot extends Component {
     );
   }
 }
-
 function UIRootHooksWrapper(props) {
   useAccessibleOutlineStyle();
   const breakpoint = useCssBreakpoints();
+  const [watchtimer, setTimer] = useState(false);
+  const [storingTime, setStoringTime] = useState('')
   const { voice_chat: canVoiceChat } = usePermissions();
-
   useEffect(() => {
     const el = document.getElementById("preload-overlay");
     el.classList.add("loaded");
@@ -1683,9 +1720,9 @@ function UIRootHooksWrapper(props) {
   }, [props.scene]);
 
   return (
-    <ChatContextProvider messageDispatch={props.messageDispatch}>
+    <ChatContextProvider messageDispatch={props.messageDispatch} watchtimer={watchtimer} setTimer={setTimer} storingTime={storingTime} setStoringTime={setStoringTime}>
       <ObjectListProvider scene={props.scene}>
-        <UIRoot breakpoint={breakpoint} {...props} canVoiceChat={canVoiceChat} />
+        <UIRoot breakpoint={breakpoint} {...props} watchtimer={watchtimer} setTimer={setTimer} canVoiceChat={canVoiceChat} storingTime={storingTime} setStoringTime={setStoringTime} />
       </ObjectListProvider>
     </ChatContextProvider>
   );
