@@ -320,6 +320,7 @@ export default class HubChannel extends EventTarget {
   sendMessage = (body, type = "chat") => {
     if (!body) return;
    this.channel.push("message", { body, type });
+   console.log(this.channel)
   };
 
   _getCreatorAssignmentToken = () => {
@@ -454,6 +455,7 @@ export default class HubChannel extends EventTarget {
   kick = async sessionId => {
     APP.dialog.kick(sessionId);
     this.channel.push("kick", { session_id: sessionId });
+    console.log(sessionId)
   };
 
   requestSupport = () => this.channel.push("events:request_support", {});
